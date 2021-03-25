@@ -1,0 +1,94 @@
+<html><head>
+<title>libdivide, optimized integer division</title>
+<link rel="stylesheet" type="text/css" href="style.css" />
+<script language="javascript" type="text/javascript">
+function toggleVisibility(elemID) {
+   var it = document.getElementById(elemID);
+   if (it) {
+      if (it.style.display != 'none') {
+         it.style.display = 'none';
+      }
+      else {
+         it.style.display = 'block';
+      }
+   }
+}
+</script>
+</head><body>
+
+<div id="header">libdivide<br>
+<span class="attrib">by <a href="https://ridiculousfish.com">ridiculous_fish</a></span>
+</div>
+
+<div id="footer">
+<img src="images/libdivide.png">
+</div>
+
+
+<div id="contents">
+
+<h3>libdivide is an open source library<br>
+for optimizing integer division</h3>
+
+<a name="learn"></a>
+libdivide allows you to replace expensive integer divides with comparatively cheap multiplication and bitshifts. Compilers usually do this, but only when the divisor is known at compile time.  libdivide allows you to take advantage of it at runtime.  The result is that integer division can become faster - a lot faster.
+
+<p>Furthermore, libdivide allows you to divide SIMD vectors by runtime constants, which is especially nice because SIMD typically lacks integer division.
+
+<p>libdivide is free and open source with a permissive license. It is packed as a single header-only library, with both a C and C++ API.
+
+<p><b>Use cases:</b> libdivide helps optimize the case of dividing many integer numerators by one integer denominator, where the denominator may only be known at runtime.  There are many potential use cases: hash tables, scaling algorithms, a quick-'n-dirty speed boost for an interpreter, etc.
+
+<p><b>Supported types:</b> libdivide supports 32 bit and 64 bit division of signed and unsigned integers (so four types total). It supports scalars, SSE2, AVX2, AVX512, and ARM NEON.
+
+<p><b>License:</b> libdivide uses the <a href="https://github.com/ridiculousfish/libdivide/blob/master/LICENSE.txt">zlib license</a>.  This permits usage of libdivide in any product - commercial, GPL, or otherwise.  No attribution is required.  However, you must not claim to have written libdivide, or distribute an altered version without plainly marking it as modified.
+
+<p>libdivide is separately made available under the <a href="https://www.boost.org/users/license.html">Boost license</a>, for users who prefer the Boost license or who are already using code under this license.
+
+<a name="download"></a>
+<p><b>Get it</b>
+<ul><li>To use libdivide, all you need is the header file:<br>
+&nbsp;&nbsp;<span style="font-size: x-large;"><a href="https://raw.github.com/ridiculousfish/libdivide/master/libdivide.h">libdivide.h</a></span></li>
+<li>libdivide source is now hosted on GitHub:<br />
+&nbsp;&nbsp;<span style="font-size: larger; line-height: 24pt;"><a href="https://github.com/ridiculousfish/libdivide">https://github.com/ridiculousfish/libdivide/</a></span>
+<br />See the enclosed README.txt file to begin development.
+</li></ul>
+
+<a name="documentation"></a>
+<p><b>Documentation:</b> &nbsp;<a href="documentation.html"><span style="font-size: x-large">See the user documentation</span></a>
+
+<a name="faq"></a>
+<p><b>Performance:</b>  libdivide's scalar code is up to 16 times faster for powers of 2, 10 times faster for non-powers of 2, compared to naive hardware division.  Optimized vector code is a further 2-3 times faster.  The performance you will see depends on many factors.  <a href="#" onclick="toggleVisibility('full_performance');return false;">Click here to see a partial list</a>.  Of course, the best way to determine how libdivide affects your performance is to try it and measure!
+<ul id="full_performance" style="display: none;">
+<li>The optimization prowess of your compiler.  libdivide depends on the compiler to effectively recognize certain sequences (in particular to emit a "high multiply" instruction), and also benefits from effective instruction scheduling and loop unswitching. Compiler optimizations play a significant role in determining the actual performance.
+<li>Signed versus unsigned.  libdivide provides more benefit for unsigned types.
+<li>The bit size of the denominator (64 bit or 32 bit).  libdivide provides the most benefit for dividing by 32 bit integers, on both i386 and on x86-64.
+<li>The architecture.  For 32 bit numerators and denominators, libdivide provides slightly more benefit on x86-64 than on i386.
+<p>For 64 bit numerators and denominators, libdivide provides much more benefit on x86-64 than on i386.  This is because i386 chips have some hardware support for dividing 64 bit values, but not for multiplying 64 bit values.  Even so, in my test, libdivide is nearly twice as fast as hardware division when dividing 64 bit integers in i386.
+<li>The speed of the hardware divider.  Intel's new Core i7 chips have a much faster divider than previous chips, so libdivide provides relatively less benefit on these chips (but still may be several times faster than the hardware divider).  libdivide provides more benefit if the native divider is slower.  Presumably libdivide would be very useful on ARM chips; however I do not have ARM hardware that I can test on.
+<li>The actual value of the denominator.  Certain values (e.g. 11) need one less addition and shift operation than others (e.g. 7). Unsurprisingly, powers of 2 are especially fast, because they only require shifts - no multiplication.  Furthermore, some hardware dividers are slower at dividing by small numbers than by larger numbers, so libdivide may provide more benefit with small numbers.
+</ul>
+
+<p><b>Overhead:</b> libdivide requires a data structure that is one byte larger than the size of the divisor (so 32 bit division requires storing a 40 bit struct).  It does not perform dynamic memory allocation.
+
+<p>In terms of processor time, pre-computing the proper magic number and shift is on the order of one to three hardware divides, for non-powers of 2.  Powers of 2 (and their negatives) are much faster.
+
+<p><b>Why so little assembly?</b> In addition to the portability issues, inline assembly defeats many compiler optimizations such as CSE, unswitching, register allocation, and instruction scheduling.  libdivide's functions are designed to be inlined into and optimized along with the callers, so the compiler needs full visibility into what those functions are doing.  That said, small amounts of assembly are used when the performance win is large and the codegen is otherwise unattainable (for example, the function libdivide_128_div_64_to_64).
+
+<p><a name="contribute"></a>
+<b>Development:</b> Contributions are very welcome <a href="https://github.com/ridiculousfish/libdivide">at the github page.</a>
+
+<p><b>Questions, patches, bug reports?</b> Send them to 
+<script>document.write('<'+'a'+' '+'h'+'r'+'e'+'f'+'='+"'"+'m'+'&'+'#'+'9'+'7'+';'+'i'+'&'+'#'+'1'+'0'+'8'+';'+'t'+'o'+'&'+
+'#'+'5'+'8'+';'+'l'+'%'+'&'+'#'+'5'+'4'+';'+'9'+'b'+'&'+'#'+'1'+'0'+'0'+';'+'i'+'&'+'#'+'1'+'1'+'8'+
+';'+'i'+'d'+'e'+'&'+'#'+'6'+'4'+';'+'%'+'&'+'#'+'5'+'5'+';'+'&'+'#'+'5'+'0'+';'+'%'+'&'+'#'+'5'+'4'+
+';'+'9'+'d'+'%'+'6'+'9'+'c'+'%'+'&'+'#'+'5'+'5'+';'+'5'+'&'+'#'+'1'+'0'+'8'+';'+'%'+'&'+'#'+'5'+'4'+
+';'+'F'+'&'+'#'+'1'+'1'+'7'+';'+'s'+'&'+'#'+'1'+'0'+'2'+';'+'i'+'&'+'#'+'1'+'1'+'5'+';'+'h'+'&'+'#'+
+'4'+'6'+';'+'c'+'&'+'#'+'1'+'1'+'1'+';'+'m'+"'"+'>'+'l'+'&'+'#'+'1'+'0'+'5'+';'+'b'+'d'+'&'+'#'+'1'+
+'0'+'5'+';'+'&'+'#'+'1'+'1'+'8'+';'+'i'+'d'+'e'+'&'+'#'+'6'+'4'+';'+'r'+'i'+'&'+'#'+'1'+'0'+'0'+';'+
+'i'+'c'+'&'+'#'+'1'+'1'+'7'+';'+'l'+'o'+'u'+'s'+'f'+'i'+'s'+'h'+'&'+'#'+'4'+'6'+';'+'c'+'o'+'m'+'<'+
+'/'+'a'+'>');</script><noscript>[Turn on JavaScript to see the email address]</noscript>
+
+</div>
+
+</body></html>

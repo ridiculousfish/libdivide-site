@@ -1,0 +1,165 @@
+<html><head>
+
+<link rel="stylesheet" type="text/css" href="style.css" />
+<link rel="stylesheet" type="text/css" href="sh_style.css" />
+<link href="prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="sh_main.min.js"></script>
+<script type="text/javascript" src="sh_cpp.min.js"></script>
+
+<script language="javascript" type="text/javascript">
+function toggleVisibility(elemID) {
+   var it = document.getElementById(elemID);
+   if (it) {
+      if (it.style.display != 'none') {
+         it.style.display = 'none';
+      }
+      else {
+         it.style.display = 'block';
+      }
+   }
+}
+</script>
+
+</head><body onload="sh_highlightDocument();">
+
+<div id="header">
+libdivide<br>
+<span class="attrib">by <a href="http://ridiculousfish.com">ridiculous_fish</a></span>
+</div>
+
+<div id="footer">
+<img src="images/libdivide.png">
+</div>
+
+<div id="contents">
+This is the documentation for libdivide, a library for optimizing integer division.  libdivide has both a C and a C++ interface.  Pick one:
+
+<ul style="font-size: x-large">
+<li><a href="#c_api">C API</a></li>
+<li><a href="#cpp_api">C++ API</a></li>
+<li><a href="#preprocessor">Preprocessor defines</a></li>
+</ul>
+
+<hr />
+
+<p><h2><a name="cpp_api">libdivide in C++</a></h2>
+<p>The C++ API leverages templates and operator overloading.  If you don't like these things, feel free to use <a href="#c_api">the C API</a>, which works fine in C++.
+
+<p>An example is worth a thousand words, so jump in.  Here is a function that divides many integers by a fixed integer, and returns their sum:
+
+<pre class="sh_cpp">
+int sum_of_quotients(const int *numers, int count, int d) {
+    int result = 0;
+    for (int i=0; i &lt; count; i++)
+        result += numers[i] / d; //this division is slow!
+    return result;
+}
+</pre>
+
+Here is how you would optimize it with libdivide in C++:
+
+<pre class="sh_cpp">
+int sum_of_quotients(const int *numers, int count, int d) {
+    int result = 0;
+    libdivide::divider&lt;int&gt; fast_d(d); //constructs an instance of libdivide::divider
+    for (int i=0; i &lt; count; i++)
+        result += numers[i] / fast_d; //uses faster libdivide division
+    return result;
+}
+</pre>
+
+Despite the division operator, no division instructions are issued in the second code.  The division operator is overloaded to instead use a multiply and shift, which were precomputed in the constructor for libdivide::divider.
+
+<p>All of libdivide is contained in a single header file, with the libdivide namespace.  The sole public class in this namespace is 'divider'.  This class is a template, parameterized by the type you want to divide.  Four types are supported: <code>int32_t</code>, <code>int64_t</code>, <code>uint32_t</code>, and <code>uint64_t</code>, with other types producing an error.
+
+<p>When dividing, the numerator may be the same type as the denominator. If vector support is enabled, then it may also be a vector type. Supported vector types are the corresponding NEON types (<code>uint32x4_t</code>, <code>int32x4_t</code>, <code>uint64x2_t</code>, <code>int64x2_t</code>) and the x86 family (<code>__m128i</code>, <code>__m256i</code>, <code>__m512i</code>).
+
+<hr />
+<p><h2><a name="c_api">libdivide in C</a></h2>
+<p>The C API takes the form of a family of regularly named functions.  You use libdivide in C by passing the divisor to a <i>generating</i> function, which returns a struct.  You then pass a dividend (numerator) and a pointer to the struct to a <i>do</i> function, which returns the resulting quotient.
+
+<p>Here is that normal C function that divides many integers by a fixed integer, and returns their sum:
+<pre class="sh_cpp">
+int sum_of_quotients(const int *numers, int count, int d) {
+    int result = 0;
+    for (int i=0; i &lt; count; i++)
+        result += numers[i] / d; //this division is slow!
+    return result;
+}
+</pre>
+
+Here is how you would optimize it with libdivide in C:
+
+<pre class="sh_cpp">
+int sum_of_quotients(const int *numers, size_t count, int d) {
+    int result = 0;
+    struct libdivide_s32_t fast_d = libdivide_s32_gen(d);
+    for (size_t i=0; i &lt; count; i++)
+        result += libdivide_s32_do(numers[i], &fast_d); // performs faster libdivide division
+    return result;
+}
+</pre>
+
+<p style="margin-bottom: 5px">The four supported types are int32_t, uint32_t, int64_t, and uint64_t.  The four <i>generating</i> functions are:
+<ul class="func_list">
+<li><span>struct libdivide_s32_t <b>libdivide_s32_gen</b>(int32_t &nbsp;y)</span></li>
+<li><span>struct libdivide_u32_t <b>libdivide_u32_gen</b>(uint32_t y)</span></li>
+<li><span>struct libdivide_s64_t <b>libdivide_s64_gen</b>(int64_t &nbsp;y)</span></li>
+<li><span>struct libdivide_u64_t <b>libdivide_u64_gen</b>(uint64_t y)</span></li>
+</ul>
+
+<p style="margin-bottom: 5px">Similarly, there are four <i>do</i> functions.  Each accepts a numerator and returns the result of dividing it by the denominator passed to the <i>gen</i> function:
+<ul class="func_list">
+<li><span>int32_t &nbsp;<b>libdivide_s32_do</b>(int32_t, &nbsp;const struct libdivide_s32_t *)</b></span></li>
+<li><span>uint32_t <b>libdivide_u32_do</b>(uint32_t, const struct libdivide_u32_t *)</span></li>
+<li><span>int64_t &nbsp;<b>libdivide_s64_do</b>(int64_t, &nbsp;const struct libdivide_s64_t *)</span></li>
+<li><span>uint64_t <b>libdivide_u64_do</b>(uint64_t, const struct libdivide_u64_t *)</span></li>
+</ul>
+
+<p style="margin-bottom: 5px">There are also <i>do_vec</i> functions, designed to integrate with vector intrisics. The functions are named according to the vector width: 128 for SSE2 and NEON, 256 for AVX2, 512 for AVX512. Each accepts a vector containing either two or four packed numerators, and returns a vector containing the  result of dividing each by the denominator passed to the <i>gen</i> function:
+<ul class="func_list">
+x86:<br/>
+<li><span>__m128i <b>libdivide_s32_do_vec128</b>(__m128i, const struct libdivide_s32_t *)</span></li>
+<li><span>__m128i <b>libdivide_u32_do_vec128</b>(__m128i, const struct libdivide_u32_t *)</span></li>
+<li><span>__m128i <b>libdivide_s64_do_vec128</b>(__m128i, const struct libdivide_s64_t *)</span></li>
+<li><span>__m128i <b>libdivide_u64_do_vec128</b>(__m128i, const struct libdivide_u64_t *)</span></li>
+<br/>
+
+<li><span>__m256i <b>libdivide_s32_do_vec256</b>(__m256i, const struct libdivide_s32_t *)</span></li>
+<li><span>__m256i <b>libdivide_u32_do_vec256</b>(__m256i, const struct libdivide_u32_t *)</span></li>
+<li><span>__m256i <b>libdivide_s64_do_vec256</b>(__m256i, const struct libdivide_s64_t *)</span></li>
+<li><span>__m256i <b>libdivide_u64_do_vec256</b>(__m256i, const struct libdivide_u64_t *)</span></li>
+<br/>
+<li><span>__m256i <b>libdivide_s32_do_vec512</b>(__m512i, const struct libdivide_s32_t *)</span></li>
+<li><span>__m256i <b>libdivide_u32_do_vec512</b>(__m512i, const struct libdivide_u32_t *)</span></li>
+<li><span>__m256i <b>libdivide_s64_do_vec512</b>(__m512i, const struct libdivide_s64_t *)</span></li>
+<li><span>__m256i <b>libdivide_u64_do_vec512</b>(__m512i, const struct libdivide_u64_t *)</span></li>
+
+<br/>NEON:<br/><br/>
+<li><span>int32x4_t <b>libdivide_s32_do_vec128</b>(int32x4_t, const struct libdivide_s32_t *)</b></span></li>
+<li><span>uint32x4_t <b>libdivide_u32_do_vec128</b>(uint32x4_t, const struct libdivide_u32_t *)</span></li>
+<li><span>int64x2_t <b>libdivide_s64_do_vec128</b>(int64x2_t, const struct libdivide_s64_t *)</span></li>
+<li><span>int64x2_t <b>libdivide_u64_do_vec128</b>(int64x2_t, const struct libdivide_u64_t *)</span></li>
+</ul>
+
+<hr />
+<p><h2><a name="preprocessor">Preprocessor defines</a></h2>
+
+<p>libdivide's behavior can be tweaked by a few preprocessor macros:
+
+<ul>
+<li><b>LIBDIVIDE_SSE2</b></li>
+<li><b>LIBDIVIDE_AVX2</b></li>
+<li><b>LIBDIVIDE_AVX512</b></li>
+<p class="explanatory">
+    These enable the corresponding x86 vector support.
+</p>
+    
+<li><b>LIBDIVIDE_NEON</b></li>
+<p class="explanatory">
+    This enables NEON vector support:
+</p>
+</ul>
+
+</div>
+</body></html>
